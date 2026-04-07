@@ -5,8 +5,9 @@ import pandas as pd
 from pathlib import Path
 from tqdm import tqdm 
 from loguru import logger
-
-from gsl_detect.config import FACE_SELECTED_INDICES, GLOSSES, RAW_DATA_DIR, PROCESSED_DATA_DIR
+from multiprocessing import Pool
+import os
+from gsl_detect.config import FACE_SELECTED_INDICES, POSE_SELECTED_INDICES, GLOSSES, RAW_DATA_DIR, INTERIM_DATA_DIR
 
 from mediapipe.tasks.python.vision import (
     PoseLandmarker, PoseLandmarkerOptions,
@@ -42,7 +43,8 @@ class GSLLandmarker:
         self.hands = HandLandmarker.create_from_options(
             HandLandmarkerOptions(
                 base_options=BaseOptions(model_asset_path='hand_landmarker.task'),
-                running_mode=RunningMode.VIDEO
+                running_mode=RunningMode.VIDEO,
+                num_hands=2
             )
         )
 
@@ -70,9 +72,12 @@ class GSLLandmarker:
 
     def _pack_landmarks(self, pose_result, hand_result, face_result):
         # Pose: 33 pts * 4 values = 132
-        pose = np.array([[lm.x, lm.y, lm.z, lm.visibility]
-                         for lm in pose_result.pose_landmarks[0]]).flatten() \
-               if pose_result.pose_landmarks else np.zeros(33 * 4)
+        pose = np.array([[pose_result.pose_landmarks[0][i].x,
+                          pose_result.pose_landmarks[0][i].y,
+                          pose_result.pose_landmarks[0][i].z,
+                          pose_result.pose_landmarks[0][i].visibility]
+                         for i in POSE_SELECTED_INDICES]).flatten() \
+               if pose_result.pose_landmarks else np.zeros(len(POSE_SELECTED_INDICES) * 4)
 
         # Face: selected indices * 3 values
         face = np.array([[face_result.face_landmarks[0][i].x,
@@ -95,43 +100,43 @@ class GSLLandmarker:
         return np.concatenate([pose, face, lh, rh])
 
 def generate_features():
-    """
-    Main loop to process the GSL dataset based on your CSV and folder structure.
-    """
-    logger.info("Initializing Landmarker Task...")
-    try:
-        landmarker = GSLLandmarker()
-    except Exception as e:
-        logger.error(f"Failed to load Landmarker: {e}")
-        return
-
-    csv_path = RAW_DATA_DIR / "isolated_GSL_corpus.csv" 
-    if not csv_path.exists():
-        logger.error(f"CSV not found at {csv_path}")
-        return
-
+    csv_path = RAW_DATA_DIR / "isolated_GSL_corpus.csv"
     df = pd.read_csv(csv_path)
-    PROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-    logger.info(f"Starting extraction for {len(df)} samples...")
+    df["Signer"] = df["Video"].apply(lambda x: x.split("/")[0])
     
-    for idx, row in tqdm(df.iterrows(), total=len(df)): 
-        video_rel_path = row.get('Video', row.get('video_path'))
-        video_file = GLOSSES / f"{video_rel_path}.mp4"
+    all_signers = sorted(df["Signer"].unique())  # 21 signers
+    
+    # Round-robin split across 4 processes
+    # Process 0: signers 0,4,8,12,16,20
+    # Process 1: signers 1,5,9,13,17
+    # Process 2: signers 2,6,10,14,18
+    # Process 3: signers 3,7,11,15,19
+    signer_groups = [all_signers[i::4] for i in range(4)]
+    
+    tasks = []
+    for group in signer_groups:
+        group_videos = df[df["Signer"].isin(group)]["Video"].tolist()
+        tasks.append(group_videos)
 
+    with Pool(processes=8) as pool:
+        pool.map(process_group, tasks)
+
+
+def process_group(video_list):
+    """Each process handles its own list of videos sequentially."""
+    landmarker = GSLLandmarker()  # one instance per process
+    
+    for video_rel_path in tqdm(video_list, position=0):
+        video_file = GLOSSES / f"{video_rel_path}.mp4"
         if not video_file.exists():
-            logger.warning(f"Video file not found: {video_file}")
             continue
-            
+        
         data_sequence = landmarker.process_video(video_file)
         
         if data_sequence is not None:
-            # Save as sample_00001.npy for consistency
-            output_file = PROCESSED_DATA_DIR / f"{video_rel_path}_proc.npy"
+            output_file = INTERIM_DATA_DIR / f"{video_rel_path}_proc.npy"
             output_file.parent.mkdir(parents=True, exist_ok=True)
             np.save(output_file, data_sequence)
-
-    logger.success("Preprocessing complete!")
 
 if __name__ == "__main__":
     generate_features()

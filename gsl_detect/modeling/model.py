@@ -48,10 +48,18 @@ class GSLTransformer(nn.Module):
         # classification head
         self.classifier = nn.Sequential(
             nn.Linear(d_model, d_model // 2),
-            nn.GELU(), #x*Φ(x)
+            nn.GELU(), 
             nn.Dropout(dropout),
             nn.Linear(d_model // 2, num_classes)
         )
+
+        self.encoder = nn.TransformerEncoder(
+            encoder_layer, 
+            num_layers=num_layers,
+            norm=nn.LayerNorm(d_model) 
+        )
+
+
 
     def forward(self, x, mask):
         x = self.input_projection(x)

@@ -9,6 +9,5 @@ pandas
 scikit-learn
 matplotlib
 seaborn
-pytorch
 mediapipe
 -e .

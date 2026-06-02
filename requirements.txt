@@ -2,6 +2,7 @@ loguru
 mkdocs
 pip
 python-dotenv
+torch
 ruff
 tqdm
 typer

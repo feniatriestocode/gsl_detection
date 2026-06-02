@@ -4,13 +4,13 @@ from torch.utils.data import Dataset, DataLoader
 import pandas as pd
 from pathlib import Path
 from sklearn.preprocessing import LabelEncoder
-
+from gsl_detect.augment import augment
 
 class GSLDataset(Dataset):
-    def __init__(self, csv_path, data_dir, label_encoder=None):
+    def __init__(self, csv_path, data_dir, label_encoder=None, training=False):
         self.data_dir = Path(data_dir)
         self.df = pd.read_csv(csv_path)
-
+        self.training = training
         all_files_on_disk = {
             str(f.relative_to(self.data_dir).with_suffix(""))
             .replace('\\', '/')
@@ -56,9 +56,13 @@ class GSLDataset(Dataset):
         video_rel = self.df.iloc[idx]["Video"]
         npz_path = self.data_dir / f"{video_rel}_norm.npz"
         data = np.load(npz_path)
-        sequence = torch.tensor(data["sequence"], dtype=torch.float32)
+        # sequence = torch.tensor(data["sequence"], dtype=torch.float32)
+        sequence = data["sequence"]
         mask = torch.tensor(data["mask"], dtype=torch.bool)
         label = torch.tensor(self.labels[idx], dtype=torch.long)
+        if self.training:
+            sequence = augment(sequence, p=0.5)
+        sequence = torch.tensor(sequence, dtype=torch.float32)
         return sequence, mask, label
     
     def __len__(self):
@@ -68,8 +72,10 @@ class GSLDataset(Dataset):
     def num_classes(self):
         return len(self.label_encoder.classes_)
     
-
-
+    @property
+    def label_to_gloss(self):
+        return self.label_encoder.classes_
+  
 
 def get_dataloaders(csv_path, processed_dir, batch_size=32):
     train_dir = processed_dir / "train"
@@ -77,12 +83,9 @@ def get_dataloaders(csv_path, processed_dir, batch_size=32):
     test_dir  = processed_dir / "test"
 
     # Fit label encoder on training set only
-    train_dataset = GSLDataset(csv_path, train_dir)
-
-    # Pass fitted encoder to val and test
-    val_dataset  = GSLDataset(csv_path, val_dir,  label_encoder=train_dataset.label_encoder)
-    test_dataset = GSLDataset(csv_path, test_dir, label_encoder=train_dataset.label_encoder)
-
+    train_dataset = GSLDataset(csv_path, train_dir, training=True)
+    val_dataset   = GSLDataset(csv_path, val_dir,   label_encoder=train_dataset.label_encoder, training=False)
+    test_dataset  = GSLDataset(csv_path, test_dir,  label_encoder=train_dataset.label_encoder, training=False)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,  collate_fn=collate_fn)
     val_loader   = DataLoader(val_dataset,   batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
     test_loader  = DataLoader(test_dataset,  batch_size=batch_size, shuffle=False, collate_fn=collate_fn)

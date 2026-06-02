@@ -63,12 +63,12 @@ def main(
     csv_path:   Path = PROCESSED_DATA_DIR / "isolated_GSL_corpus.csv",
     model_path: Path = MODELS_DIR / "best_model.pt",
     d_model:    int  = 256,
-    nhead:      int  = 8,
-    num_layers: int  = 4,
-    batch_size: int  = 32,
+    nhead:      int  = 4,
+    num_layers: int  = 3,
+    batch_size: int  = 64,
     max_epochs:  int  = 200,
-    patience:    int  = 10,   # early stopping patience
-    lr:          float = 1e-4,
+    patience:    int  = 20,   # early stopping patience
+    lr:          float = 1e-4, 
 ):
 
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
@@ -86,7 +86,7 @@ def main(
                 f"Train: {len(train_dataset)} | Val: {len(val_dataset)}")
     
     model = GSLTransformer(
-        input_dim=318,
+        input_dim=186,
         d_model=d_model,
         nhead=nhead,
         num_layers=num_layers,
@@ -94,16 +94,16 @@ def main(
         num_classes=num_classes,        
     ).to(device)
 
-    criterion = nn.CrossEntropyLoss(label_smoothing=0.0)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=0)
-    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5)
+    criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=0.0001)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10)
 
     train_acc_metric = MulticlassAccuracy(num_classes=num_classes).to(device)
     val_acc_metric   = MulticlassAccuracy(num_classes=num_classes).to(device)
     val_f1_metric    = MulticlassF1Score(num_classes=num_classes, average='weighted').to(device)
 
 
-    writer = SummaryWriter(f"runs/layers{num_layers}_dmodel{d_model}_lr{lr}")
+    writer = SummaryWriter(f"runs/layers{num_layers}_dmodel{d_model}_lr{lr}_b64_ls01")
     best_val_loss = float("inf")
     epochs_no_improve = 0
 
@@ -111,7 +111,7 @@ def main(
     
     logger.info("="*30)
     logger.info("MODEL CHARACTERISTICS")
-    logger.info(f"• Input Dimension:    {318}")
+    logger.info(f"• Input Dimension:    {186}")
     logger.info(f"• d_model:            {d_model}")
     logger.info(f"• nhead:              {nhead}")
     logger.info(f"• num_layers:         {num_layers}")
@@ -127,7 +127,7 @@ def main(
 
         train_loss, train_acc = train_epoch(model, train_loader, optimizer, criterion, device, train_acc_metric)
         val_loss, val_acc, val_f1 = validate(model, val_loader, criterion, device, val_acc_metric, val_f1_metric)
-        # scheduler.step(val_loss)
+        scheduler.step(val_loss)
 
         logger.info(f"Train loss: {train_loss:.4f} | "
                     f"Val loss: {val_loss:.4f} | Val acc: {val_acc:.2%}")
@@ -138,7 +138,7 @@ def main(
         writer.add_scalar("Accuracy/val",   val_acc,    epoch)
         writer.add_scalar("F1/val",         val_f1,     epoch)
         logger.info(f"Epoch {epoch+1} | Train Acc: {train_acc:.2%} | Val Acc: {val_acc:.2%}")
-        # ── Save best model & early stopping ─────────────────────────────
+        # Save best model & early stopping
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             epochs_no_improve = 0

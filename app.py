@@ -37,10 +37,8 @@ def initialize_pipeline():
 model, reference_dataset = initialize_pipeline()
 landmarker = GSLLandmarker()
 
-# --- Tab Layout Creation ---
-tab1, tab2 = st.tabs(["📁 Upload Video Clip", "📹 Live Continuous Stream"])
+tab1, tab2 = st.tabs(["Upload Video Clip", "Live Continuous Stream"])
 
-# === TAB 1: FILE OVERVIEW PIPELINE ===
 with tab1:
     st.subheader("Evaluate Recorded Sequences")
     uploaded_file = st.file_uploader("Select a GSL phrase video record...", type=["mp4", "avi", "mov"])
@@ -75,10 +73,7 @@ with tab1:
                 st.success(f"Predicted Gloss Translation: **{predicted_word}**")
             else:
                 st.error("No skeletal landmark meshes detected in this video file. Ensure proper lighting.")
-
-
-# === TAB 2: LIVE CAMERA FEED CONTINUOUS LOOP ===
-# === TAB 2: LIVE CAMERA FEED WITH LANDMARK DRAWING ===
+# ** NOT FUNCTIONING PROPERLY YET! **
 with tab2:
     st.subheader("Live Continuous Feed Translation")
     st.write("Sign directly into your camera. The system accumulates sequential frame coordinates over time to predict signs.")
@@ -89,7 +84,7 @@ with tab2:
     TEXT_WINDOW = st.empty()
     
     if run_stream:
-        # Check alternative indexes based on your previous fix
+        # 1 is the correct index for the webcam on my system
         camera = cv2.VideoCapture(1, cv2.CAP_V4L2)
         if not camera.isOpened():
             camera.release()
@@ -103,14 +98,12 @@ with tab2:
             live_sequence_buffer = []
             TEXT_WINDOW.info("📹 Camera connected. Drawing skeletal tracking structures...")
             
-            # --- INITIALIZE MEDIAPIPE DRAWING UTILS ---
-            import mediapipe as mp
-            from mediapipe.tasks.python.vision import drawing_utils as mp_drawing
-            from mediapipe.tasks.python.vision import drawing_styles as mp_drawing_styles
-            from mediapipe.tasks import python
-            mp_drawing =mp_drawing
+            # import mediapipe as mp
+            # from mediapipe.tasks.python.vision import drawing_utils as mp_drawing
+            # from mediapipe.tasks.python.vision import drawing_styles as mp_drawing_styles
+            # from mediapipe.tasks import python
+            # mp_drawing =mp_drawing
 
-            # 4. Draw Face landmarks on the display matrix frame
             # if face_res.face_landmarks:
             #     for face_landmarks in face_res.face_landmarks:
             #         mp_drawing.draw_landmarks(

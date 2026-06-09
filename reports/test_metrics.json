@@ -1,0 +1,7 @@
+{
+  "top1_accuracy": 0.683364,
+  "top5_accuracy": 0.935489,
+  "weighted_f1": 0.669068,
+  "num_classes": 366,
+  "test_samples": 3318
+}

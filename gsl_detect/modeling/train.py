@@ -36,7 +36,7 @@ def train_epoch(model, loader, optimizer, criterion, device, acc_metric):
         # avg_loss = total_loss / len(loader)
     return total_loss / len(loader), acc_metric.compute()
 
-def validate(model, loader, criterion, device, acc_metric, f1_metric):
+def validate(model, loader, criterion, device, acc_metric, f1_metric, top5_metric):
     model.eval()
     total_loss = 0
     acc_metric.reset()
@@ -54,8 +54,9 @@ def validate(model, loader, criterion, device, acc_metric, f1_metric):
             total_loss += loss.item()
             acc_metric.update(logits, labels)
             f1_metric.update(logits, labels)
+            top5_metric.update(logits, labels)
 
-    return total_loss / len(loader), acc_metric.compute(), f1_metric.compute()
+    return total_loss / len(loader), acc_metric.compute(), f1_metric.compute(), top5_metric.compute()
 
 @app.command()
 def main(
@@ -101,9 +102,9 @@ def main(
     train_acc_metric = MulticlassAccuracy(num_classes=num_classes).to(device)
     val_acc_metric   = MulticlassAccuracy(num_classes=num_classes).to(device)
     val_f1_metric    = MulticlassF1Score(num_classes=num_classes, average='weighted').to(device)
+    val_top5_metric  = MulticlassAccuracy(num_classes=num_classes, top_k=5).to(device)
 
-
-    writer = SummaryWriter(f"runs/layers{num_layers}_dmodel{d_model}_lr{lr}_b64_ls01")
+    writer = SummaryWriter(f"runs/layers{num_layers}_dmodel{d_model}_lr{lr}_b64_ls01_final")
     best_val_loss = float("inf")
     epochs_no_improve = 0
 
@@ -126,11 +127,12 @@ def main(
         logger.info(f"Epoch {epoch+1}/{max_epochs}")
 
         train_loss, train_acc = train_epoch(model, train_loader, optimizer, criterion, device, train_acc_metric)
-        val_loss, val_acc, val_f1 = validate(model, val_loader, criterion, device, val_acc_metric, val_f1_metric)
+        val_loss, val_acc, val_f1, val_top5 = validate(model, val_loader, criterion, device, val_acc_metric, val_f1_metric, val_top5_metric)
+
         scheduler.step(val_loss)
 
         logger.info(f"Train loss: {train_loss:.4f} | "
-                    f"Val loss: {val_loss:.4f} | Val acc: {val_acc:.2%}")
+                    f"Val loss: {val_loss:.4f} | Val top-5: {val_top5:.2%}")
 
         writer.add_scalar("Loss/train",     train_loss, epoch)
         writer.add_scalar("Loss/val",       val_loss,   epoch)
@@ -138,6 +140,9 @@ def main(
         writer.add_scalar("Accuracy/val",   val_acc,    epoch)
         writer.add_scalar("F1/val",         val_f1,     epoch)
         logger.info(f"Epoch {epoch+1} | Train Acc: {train_acc:.2%} | Val Acc: {val_acc:.2%}")
+        
+
+
         # Save best model & early stopping
         if val_loss < best_val_loss:
             best_val_loss = val_loss

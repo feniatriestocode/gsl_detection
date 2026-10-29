@@ -7,7 +7,7 @@
 ![PyTorch](https://img.shields.io/badge/PyTorch-ee4c2c?logo=pytorch&logoColor=white)
 ![MediaPipe](https://img.shields.io/badge/MediaPipe-landmarks-0097A7)
 
-A video of a single signed gloss goes in; a predicted gloss comes out. Instead of feeding raw pixels to a network, the pipeline extracts body and hand landmarks with MediaPipe, normalizes them so the signer's position and size don't matter, and classifies the resulting sequence with a small Transformer encoder.
+A video of a single signed gloss goes in and a predicted gloss comes out. Instead of feeding raw pixels to a network, the pipeline extracts body and hand landmarks with MediaPipe, normalizes them so the signer's position and size don't matter, and classifies the resulting sequence with a small Transformer encoder.
 
 ## Results
 

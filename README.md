@@ -2,9 +2,7 @@
 
 **Isolated Greek Sign Language (GSL) recognition from video, using MediaPipe landmarks and a Transformer encoder.**
 
-<a target="_blank" href="https://cookiecutter-data-science.drivendata.org/">
-    <img src="https://img.shields.io/badge/CCDS-Project%20template-328F97?logo=cookiecutter" />
-</a>
+[ ![CCDS](https://img.shields.io/badge/CCDS-Project%20template-328F97?logo=cookiecutter)](https://cookiecutter-data-science.drivendata.org/)
 ![Python](https://img.shields.io/badge/python-3.12-blue)
 ![PyTorch](https://img.shields.io/badge/PyTorch-ee4c2c?logo=pytorch&logoColor=white)
 ![MediaPipe](https://img.shields.io/badge/MediaPipe-landmarks-0097A7)
@@ -82,7 +80,7 @@ Applied online to training sequences only (each with probability 0.5): Gaussian 
 
 ## Dataset
 
-The project uses the Isolated part of the GSL SL-ReDu corpus  (21 signers, one gloss per video) with a CSV listing each video and its annotation. Videos are expected at:
+The project uses the isolated part of the GSL SL-ReDu corpus (https://sl-redu.e-ce.uth.gr/el/corpus/) Developed @ the University of Thessaly (21 signers, one gloss per video) with a CSV listing each video and its annotation. Videos are expected at:
 
 ```
 data/raw/isolated_GSL_corpus/
@@ -106,8 +104,8 @@ git clone https://github.com/feniatriestocode/gsl_detection.git
 cd gsl_detection
 
 python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-pip install streamlit torchmetrics tensorboard opencv-python   # used by the code, not yet listed in requirements
+pip install -e .    # dependencies are declared in pyproject.toml
+pip install torchmetrics tensorboard   # imported by training/evaluation, not yet declared in pyproject.toml
 ```
 
 > **Run everything from the repository root.** The MediaPipe `.task` model files are loaded by relative path.

@@ -18,7 +18,7 @@ Evaluated on a **signer-independent** test set: the three test signers never app
 | Top-1 accuracy | **68.34%** |
 | Top-5 accuracy | **93.55%** |
 | Weighted F1 | **0.669** |
-| Classes | 366 |
+| Classes | 369 |
 | Test samples | 3,318 |
 
 Per-class numbers are in [`reports/per_class_metrics.csv`](reports/per_class_metrics.csv), the raw metrics in [`reports/test_metrics.json`](reports/test_metrics.json), and plots (training curves, confusion pairs, per-class accuracy) in [`reports/figures/`](reports/figures). The full write-up is [`reports/Project_Report.pdf`](reports/Project_Report.pdf).
